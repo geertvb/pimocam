@@ -18,6 +18,8 @@
 - Upload recorded files (FTP?)
 - Enable/disable recording
 - Automatic cleanup old files
+- Leds indicating motion, recording ...
+- Physical buttons/nfc/fingerprint to enable/disable recording
 
 ## Won't have
 - Sound recording using microphone
