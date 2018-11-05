@@ -1,10 +1,31 @@
 from gpiozero import MotionSensor
-from time import sleep
-from signal import pause
-import picamera
+from picamera import PiCamera
+from picamera import PiCameraCircularIO
+from picamera.frames import PiVideoFrameType
 
 # Pin numbers
 MOTION_PIN = 4
+
+
+class PiMoCamCircularIO(PiCameraCircularIO):
+
+    def __init__(self, camera, size=None, seconds=None, bitrate=17000000, splitter_port=1):
+        super(PiMoCamCircularIO, self).__init__(camera, size, seconds, bitrate, splitter_port);
+
+    def find_span(self, seconds, first_frame=PiVideoFrameType.sps_header):
+        first = None
+        last = None
+        seconds = int(seconds * 1000000)
+        for frame in reversed(self.frames):
+            if first_frame in (None, frame.frame_type):
+                first = frame
+            if frame.timestamp is not None:
+                if last is None:
+                    last = frame
+                elif last.timestamp - frame.timestamp >= seconds:
+                    break
+        return first, last
+
 
 class PiMoCam:
 
@@ -46,9 +67,9 @@ class PiMoCam:
 
     def init_camera(self):
         print ("Init camera")
-        self.camera = picamera.PiCamera()
+        self.camera = PiCamera()
         self.camera.resolution = (1280, 720)
-        self.stream = picamera.PiCameraCircularIO(self.camera, seconds = self.buffer_size)
+        self.stream = PiMoCamCircularIO(self.camera, seconds=self.buffer_size)
         self.camera.start_recording(self.stream, format='h264')
 
     def cleanup_camera(self):
@@ -57,7 +78,7 @@ class PiMoCam:
 
     def start(self):
         print ("Start")
-        # self.init_camera()
+        self.init_camera()
         self.init_pir()
 
     def wait(self, seconds=1):
@@ -66,7 +87,14 @@ class PiMoCam:
     def stop(self):
         print ("Stop")
         self.cleanup_pir()
-        # self.cleanup_camera()
+        self.cleanup_camera()
+
+    def find_span(self):
+        print ("Find span")
+        first, last = self.stream.find_span(5)
+        print("first: {}".format(first))
+        print("last: {}".format(last))
+
 
 def main():
     print("Hello PiMoCam!")
@@ -75,8 +103,9 @@ def main():
         pimocam.start()
         while True:
             print('Recording ...')
-            # pimocam.wait()
-            sleep(1)
+            pimocam.wait(1)
+            pimocam.find_span()
+            # sleep(1)
     finally:
         print("Stop recording")
         pimocam.stop()
